@@ -31,13 +31,29 @@
         <?php
         $page='tiket';
         include('side-nav.php');
-        $id = $_GET['id'];
-        $data = mysqli_query($koneksi, "SELECT kereta.kode_kereta, nama_kereta,
+        
+        // ✅ VALIDASI DAN SANITASI ID
+        $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+        
+        if ($id <= 0) {
+            die("ID tidak valid!");
+        }
+        
+        // ✅ MENGGUNAKAN PREPARED STATEMENT (AMAN DARI SQL INJECTION)
+        $stmt = $koneksi->prepare("SELECT kereta.kode_kereta, nama_kereta,
                                         dari, ke, tanggal, jam, class, harga, img_kereta
                                         FROM tiket LEFT JOIN kereta
                                         ON tiket.kode_kereta=kereta.kode_kereta
-                                        WHERE tiket.id='$id'");
-        $d = mysqli_fetch_array($data);
+                                        WHERE tiket.id = ?");
+        $stmt->bind_param("i", $id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $d = $result->fetch_assoc();
+        $stmt->close();
+        
+        if (!$d) {
+            die("Tiket tidak ditemukan!");
+        }
         ?>
 
         <!-- Content Wrapper -->

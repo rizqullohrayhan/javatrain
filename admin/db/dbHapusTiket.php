@@ -1,20 +1,39 @@
 <?php
 require('../koneksi.php');
-$id = $_GET['id'];
-$cek = mysqli_query($koneksi, "DELETE FROM tiket WHERE id='$id'");
-if ($cek) {
-    echo "
-    <script>
+
+// ✅ VALIDASI DAN SANITASI INPUT
+$id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+
+// ✅ VALIDASI ID
+if ($id <= 0) {
+    echo "<script>
         let url = '../tiket.php';
         window.location.href = url;
-    </script>
-    ";
-} else {
-    echo "
-    <script>
-        let url = '../tiket.php';
-        window.location.href = url;
-        window.alert('Tiket gagal dihapus!');
-    </script>
-    ";
+        window.alert('ID tidak valid!');
+    </script>";
+    exit;
 }
+
+// ✅ MENGGUNAKAN PREPARED STATEMENT (AMAN DARI SQL INJECTION)
+$stmt = $koneksi->prepare("DELETE FROM tiket WHERE id = ?");
+
+if (!$stmt) {
+    die("Error preparing statement: " . $koneksi->error);
+}
+
+$stmt->bind_param("i", $id);
+
+if ($stmt->execute()) {
+    echo "<script>
+        let url = '../tiket.php';
+        window.location.href = url;
+    </script>";
+} else {
+    echo "<script>
+        let url = '../tiket.php';
+        window.location.href = url;
+        window.alert('Tiket gagal dihapus: " . addslashes($stmt->error) . "');
+    </script>";
+}
+
+$stmt->close();

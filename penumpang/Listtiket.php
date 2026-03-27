@@ -13,10 +13,33 @@
     $page = "beranda";
     include "nav.php";
     session_start();
-    $asal = $_GET['asal'];
-    $tujuan = $_GET['tujuan'];
-    $tgl = $_GET['tgl'];
-    $_SESSION['penumpang'] = $_GET['jumlah'];
+    
+    // ✅ VALIDASI DAN SANITASI INPUT
+    $asal = isset($_GET['asal']) ? trim($_GET['asal']) : '';
+    $tujuan = isset($_GET['tujuan']) ? trim($_GET['tujuan']) : '';
+    $tgl = isset($_GET['tgl']) ? trim($_GET['tgl']) : '';
+    
+    // ✅ VALIDASI INPUT TIDAK KOSONG
+    if (empty($asal) || empty($tujuan) || empty($tgl)) {
+        die("Parameter pencarian tidak lengkap!");
+    }
+    
+    // ✅ VALIDASI PANJANG INPUT
+    if (strlen($asal) > 100 || strlen($tujuan) > 100 || strlen($tgl) > 10) {
+        die("Input tidak valid!");
+    }
+    
+    // ✅ VALIDASI FORMAT TANGGAL
+    if (!DateTime::createFromFormat('Y-m-d', $tgl)) {
+        die("Format tanggal tidak valid!");
+    }
+    
+    $_SESSION['penumpang'] = isset($_GET['jumlah']) ? (int)$_GET['jumlah'] : 1;
+    
+    // ✅ VALIDASI JUMLAH PENUMPANG
+    if ($_SESSION['penumpang'] <= 0 || $_SESSION['penumpang'] > 100) {
+        die("Jumlah penumpang tidak valid!");
+    }
     ?>
 <br><br>
     <main class="container-fluid">
@@ -42,21 +65,31 @@
                 </thead>
                 <tbody>
                     <?php
-                    $query = "SELECT * FROM tiket WHERE dari='$asal' AND ke='$tujuan' AND tanggal='$tgl'";
-                    $data = mysqli_query($koneksi, $query) or die("Query error : " . mysqli_error($data));
-                    while($d = mysqli_fetch_array($data)){
+                    // ✅ MENGGUNAKAN PREPARED STATEMENT (AMAN DARI SQL INJECTION)
+                    $stmt = $koneksi->prepare("SELECT * FROM tiket WHERE dari = ? AND ke = ? AND tanggal = ?");
+                    
+                    if (!$stmt) {
+                        die("Error preparing statement: " . $koneksi->error);
+                    }
+                    
+                    $stmt->bind_param("sss", $asal, $tujuan, $tgl);
+                    $stmt->execute();
+                    $result = $stmt->get_result();
+                    
+                    while($d = $result->fetch_assoc()){
                     ?>
                     <tr class="text-white">
-                        <td><?= $d['kode_kereta'] ?></td>
-                        <td><?= $d['dari'] ?> ke <?= $d['ke'] ?></td>
-                        <td><?= $d['tanggal'] ?></td>
-                        <td><?= $d['jam'] ?></td>
-                        <td><?= $d['class'] ?></td>
-                        <td><?= $d['harga'] ?></td>
-                        <td><a href="identitas.php?tiket=<?= $d['id'] ?>"><i class="fas fa-shopping-basket"></i></a></td>
+                        <td><?= htmlspecialchars($d['kode_kereta'], ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars($d['dari'], ENT_QUOTES, 'UTF-8') ?> ke <?= htmlspecialchars($d['ke'], ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars($d['tanggal'], ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars($d['jam'], ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars($d['class'], ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars($d['harga'], ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><a href="identitas.php?tiket=<?= urlencode($d['id']) ?>"><i class="fas fa-shopping-basket"></i></a></td>
                     </tr>
                     <?php
                     }
+                    $stmt->close();
                     ?>
                 </tbody>
             </table>

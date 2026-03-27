@@ -31,9 +31,25 @@
         <?php
         $page='kereta';
         include('side-nav.php');
-        $id = $_GET['id'];
-        $kereta = mysqli_query($koneksi, "SELECT * FROM kereta WHERE id='$id'");
-        $k = mysqli_fetch_array($kereta);
+        
+        // ✅ VALIDASI DAN SANITASI ID
+        $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+        
+        if ($id <= 0) {
+            die("ID tidak valid!");
+        }
+        
+        // ✅ MENGGUNAKAN PREPARED STATEMENT (AMAN DARI SQL INJECTION)
+        $stmt = $koneksi->prepare("SELECT * FROM kereta WHERE id = ?");
+        $stmt->bind_param("i", $id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $k = $result->fetch_assoc();
+        $stmt->close();
+        
+        if (!$k) {
+            die("Kereta tidak ditemukan!");
+        }
         ?>
 
         <!-- Content Wrapper -->

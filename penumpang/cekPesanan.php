@@ -12,8 +12,21 @@
     <?php
     $page = "pesanan";
     include "nav.php";
-    require("cekStatus.php");;
-    // $nik = $_GET['nik'];
+    require("cekStatus.php");
+    
+    // ✅ VALIDASI DAN SANITASI NIK (dari cekStatus.php)
+    // variabel $nik sudah divalidasi di cekStatus.php
+    
+    // ✅ NIK SUDAH DIVALIDASI DI cekStatus.php, SEKARANG BUAT QUERY AMAN
+    $stmt = $koneksi->prepare("SELECT log_pesan.expired, log_pesan.id, kode_kereta, dari, ke, tanggal, penumpang, log_pesan.harga, status, class FROM log_pesan JOIN tiket ON log_pesan.id_tiket=tiket.id WHERE nik = ? ORDER BY jam_booking");
+    
+    if (!$stmt) {
+        die("Error preparing statement: " . $koneksi->error);
+    }
+    
+    $stmt->bind_param("s", $nik);
+    $stmt->execute();
+    $result = $stmt->get_result();
     ?>
 <br><br>
     <main class="container-fluid">
@@ -36,32 +49,32 @@
                 </thead>
                 <tbody>
                     <?php
-                    $query = "SELECT log_pesan.expired, log_pesan.id, kode_kereta, dari, ke, tanggal, penumpang, log_pesan.harga, status, class FROM log_pesan JOIN tiket ON log_pesan.id_tiket=tiket.id WHERE nik='$nik' ORDER BY jam_booking";
-                    $data = mysqli_query($koneksi, $query);
-                    while($d = mysqli_fetch_array($data)){
+                    while($d = $result->fetch_assoc()){
                     ?>
                     <tr class="text-white">
-                        <td><?= $d['kode_kereta'] ?></td>
-                        <td><?= $d['dari'] ?> ke <?= $d['ke'] ?></td>
-                        <td><?= $d['tanggal'] ?></td>
-                        <td><?= $d['class'] ?></td>
-                        <td><?= $d['penumpang'] ?></td>
-                        <td><?= $d['harga'] ?></td>
+                        <td><?= htmlspecialchars($d['kode_kereta'], ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars($d['dari'], ENT_QUOTES, 'UTF-8') ?> ke <?= htmlspecialchars($d['ke'], ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars($d['tanggal'], ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars($d['class'], ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars($d['penumpang'], ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars($d['harga'], ENT_QUOTES, 'UTF-8') ?></td>
                         <td 
                         <?php
                             if($d['status']=="Lunas"){echo 'class="table-success"';}
                             else if($d['status']=="Pending"){echo 'class="table-warning"';}
                             else if($d['status']=="Expired"){echo 'class="table-danger"';}
                             if($d['status']=="Pending"){?>
-                                title="Harap bayar sebelum <?= $d['expired'] ?>" 
+                                title="Harap bayar sebelum <?= htmlspecialchars($d['expired'], ENT_QUOTES, 'UTF-8') ?>" 
                             <?php }
                         ?>
                         >
-                            <?= $d['status'] ?>
+                            <?= htmlspecialchars($d['status'], ENT_QUOTES, 'UTF-8') ?>
                         </td>
-                        <td><a href="lunas.php?id=<?= $d['id'] ?>&nik=<?= $nik ?>"><i class="fas fa-money-check-alt"></i></a></td>
+                        <td><a href="lunas.php?id=<?= urlencode($d['id']) ?>&nik=<?= urlencode($nik) ?>"><i class="fas fa-money-check-alt"></i></a></td>
                     </tr>
-                    <?php } ?>
+                    <?php } 
+                    $result->close();
+                    ?>
                 </tbody>
             </table>
         </div>

@@ -1,19 +1,50 @@
 <?php
 require('koneksi.php');
-$id = $_GET['id'];
-$nik = $_GET['nik'];
-$cek = mysqli_query($koneksi, "SELECT * FROM log_pesan WHERE id='$id'");
-$c = mysqli_fetch_array($cek);
-if($c['status']!="Expired"){
-    $query = "UPDATE log_pesan SET status='Lunas' WHERE id='$id'";
-}else{
-    $query = 0;
+
+// ✅ VALIDASI DAN SANITASI INPUT
+$id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$nik = isset($_GET['nik']) ? trim($_GET['nik']) : '';
+
+// ✅ VALIDASI ID
+if ($id <= 0) {
+    die("ID tidak valid!");
 }
-$lunas = mysqli_query($koneksi, $query);
+
+// ✅ VALIDASI NIK
+if (empty($nik)) {
+    die("NIK tidak valid!");
+}
+
+if (!preg_match('/^\d{16}$/', $nik)) {
+    die("Format NIK tidak valid!");
+}
+
+// ✅ CEK STATUS MENGGUNAKAN PREPARED STATEMENT
+$stmt_cek = $koneksi->prepare("SELECT status FROM log_pesan WHERE id = ?");
+$stmt_cek->bind_param("i", $id);
+$stmt_cek->execute();
+$result = $stmt_cek->get_result();
+$c = $result->fetch_assoc();
+$stmt_cek->close();
+
+if (!$c) {
+    die("Data pembayaran tidak ditemukan!");
+}
+
+// ✅ UPDATE STATUS MENGGUNAKAN PREPARED STATEMENT
+if($c['status'] != "Expired") {
+    $stmt = $koneksi->prepare("UPDATE log_pesan SET status = 'Lunas' WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $lunas = $stmt->execute();
+    $stmt->close();
+} else {
+    $lunas = false;
+}
+
 if ($lunas) {
     echo "
     <script>
-        let url= 'cekPesanan.php?nik=".$nik."';
+        let url= 'cekPesanan.php?nik=" . urlencode($nik) . "';
         window.location.href = url;
         window.alert('Pembayaran berhasil');
     </script>
@@ -21,9 +52,10 @@ if ($lunas) {
 } else {
     echo "
     <script>
-        let url= 'cekPesanan.php?nik=".$nik."';
+        let url= 'cekPesanan.php?nik=" . urlencode($nik) . "';
         window.location.href = url;
         window.alert('Pembayaran gagal');
     </script>
     ";
 }
+?>
